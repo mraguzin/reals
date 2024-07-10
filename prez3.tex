@@ -1,0 +1,464 @@
+\documentclass{beamer}
+\usepackage{graphicx}
+\usepackage[croatian]{babel}
+\usepackage{csquotes}
+\usepackage{amsfonts, amsmath, amsthm}
+\usepackage{mathtools}
+\usepackage{thmtools}
+%\usepackage[backend=biber,style=authoryear,autocite=inline]{biblatex}
+\usepackage[backend=biber]{biblatex}
+\addbibresource{seminar.bib}
+%\bibstyle{alpha}
+%\bibliographystyle{alpha}
+\MakeOuterQuote{"}
+
+\def\N{\mathbb{N}}
+\def\Z{\mathbb{Z}}
+\def\Q{\mathbb{Q}}
+\def\R{\mathbb{R}}
+\def\C{\mathbb{C}}
+\def\CR{\mathrm{CR}}
+
+%Information to be included in the title page:
+\title{Generalizirani kalkulator}
+\subtitle{u Haskellu}
+\author{Mauro Raguzin}
+\institute{PMF-MO}
+\date{\today}
+
+\begin{document}
+
+\frame{\titlepage}
+
+\begin{frame}
+    \frametitle{Sadržaj}
+    \tableofcontents
+\end{frame}
+
+\section{Uvodno o projektu}
+% \begin{frame}
+% \frametitle{O kalkulatorima}
+% Kalkulatori su nam poznati iz svakodnevice:
+% \begin{itemize}
+%     \item pružaju brzi način dobivanja rezultata najčešćih računskih operacija
+%     \item sadrže rutine za računanje poznatih konstanti poput $\pi$, $e$ itd.
+%     \item neki mogu čak crtati i grafove, rješavati jednadžbe\ldots
+%     \item sve račune koji uključuju realne brojeve rade do na određenu preciznost
+% \end{itemize}
+% Iako su nam kalkulatori korisni, bili oni softverski ili hardverski (džepni),
+% postavljaju se pitanja:
+% \begin{itemize}
+%  \item Postoji li garancija da računaju na određenu preciznost?
+% \item Ako je preciznost fiksirana, je li ona određena brojem decimala
+% ili nekako drukčije?
+% \item Možemo li proširiti računanje s osnovnih operacija na proizvoljne
+% (očekivano totalne) funkcije nad \alert{realnim} brojevima?
+% \end{itemize}
+% \end{frame}
+
+\begin{frame}
+\frametitle{O ideji ovog kalkulatora}
+Neki od ciljeva ovog projekta su bili:
+\begin{itemize}
+    \item primijeniti razne rezultate iz kolegija Izračunljiva analiza,
+    \item konstruirati kalkulator u Haskellu,
+    \item proširiti standardne funkcionalnosti onima koje omogućuju
+    računanje s proizvoljnim Haskellovim funkcijama nad brojevima.
+\end{itemize}
+\pause
+Kako se često u uvodnim tekstovima o Haskellu zna napomenuti da
+se interaktivna GHC sesija može koristiti kao kalkulator, ovdje to
+zaista želimo ojačati i proširiti na funkcije --- nije moguće računati
+samo s ugrađenim Haskellovim brojevnim tipovima, već i s funkcijama
+nad tim tipovima!
+\end{frame}
+
+\begin{frame}
+\frametitle{Bitne funkcionalnosti kalkulatora}
+Konkretno, naš kalkulator podržava:
+\begin{itemize}
+    \item računanje (obavljanje svih standardnih aritmetičkih
+    operacija 
+    $+$,$-$,$*$,$/$,$|\cdot|$, no ovisi o konkretnoj algebarskoj
+    strukturi) s prirodnim, cijelim, racionalnim i 
+    \emph{izračunljivim}\footnote{Skup izračunljivih realnih brojeva
+    označavamo sa $\CR\subseteq\R$.} realnim brojevima;
+    \item sve aritmetičke operacije nad \alert{funkcijama} oblika
+    $\N^k\to D$, gdje je $D\in\{\N,\Z,\Q,\CR\}$ i $k\in\N_+$.
+\end{itemize}
+U slučaju rada s (implicitno izračunljivim) realnim brojevima,
+    korisniku dajemo kontrolu nad određivanjem preciznosti u smislu
+    standardne euklidske metrike nad $\R$ --- preciznost je uvijek
+    argument koji se mora specificirati pri računu realnog broja.
+\end{frame}
+
+\begin{frame}
+    \frametitle{Naputci za implementaciju}
+    Pri implementaciji kalkulatora u Haskellu nastojali smo se
+    pridržavati sljedećih pravila: 
+    \begin{itemize}
+        \pause
+        \item koristiti samo čisti Haskell sa standardnim Prelude-om;
+        \pause
+        \item definirati sve bitnije funkcije za osnovni račun s brojevnim funkcijama s Izračunljive analize i pokušati se što više
+        držati definicija s tog kolegija;
+        \pause
+        \item postići što veću razinu formalne sličnosti definicija
+        relevantnih
+        funkcija u raznim dokazima rezultata iz IA i njihovih
+        haskellovskih implementacija;
+        \pause
+        \item uklopiti definicije funkcija u odgovarajuće algebarske
+        strukture;
+        \pause
+        \item reprezentirati algebarske strukture smislenim type-klasama,
+        pri čemu treba težiti instanciranju već postojećih Prelude
+        klasa, čime također dobivamo mogućnost korištenja standardnih
+        infiksnih operatora u radu s našim brojevnim funkcijama
+        (à la stolni kalkulatori) 
+    \end{itemize}
+\end{frame}
+
+\begin{frame}
+    \frametitle{Čime se \emph{nismo} bavili}
+    Važno je napomenuti i što ovaj kalkulator definitivno nije.
+    Naime, on \alert{nije} kalkulator koji
+    \begin{itemize}
+        \pause
+        \item može izračunati sve realne brojeve; smatra se da takvo
+        što nije fizički ni teorijski moguće sa sadašnjim razumijevanjem 
+        izračunljivosti \cite{weihrauch};
+        \pause
+        \item koristi posebno odabrane, efikasne algoritme za 
+        svoje računske operacije;
+        \pause
+        \item može računati korijene polinoma, rješavati sustave jednadžbi\ldots 
+        \pause
+        \item garantira terminaciju svih svojih izračunavanja.
+    \end{itemize}
+    \pause
+    U vezi s posljednjom točkom, napomenimo da bi za stolni
+    tip kalkulatora bilo idealno osigurati terminaciju svih operacija;
+    one koje su ilegalne bi se trebale detektirati te bi se korisniku
+    ispisala greška. \pause No, kako je naš implementacijski jezik Haskell,
+    te želimo nešto općenitiji kalkulator koji radi s korisnički
+    isprogramiranim funkcijama te je Haskell Turing-potpun jezik,
+    smatramo da nema smisla korisniku davati neke posebne konstrukte
+    koje ga ograničavaju u izražajnosti. 
+\end{frame}
+
+\begin{frame}
+\frametitle{Ograničenja}
+\begin{block}{Napomena}
+Terminacija izračunavanja
+    funkcije u Haskellu, za dani ulaz, dakako nije odlučivo svojstvo
+    i zato bi jedini način forsiranja terminacije bio uvođenje posebnog
+    pod-jezika koji ne bi mogao biti Turing-potpun, što bi nas vratilo
+    na razinu primitivnih kalkulatora koju želimo nadići.
+\end{block}
+
+\pause
+Dakle, dozvoljavamo da korisnik završi s parcijalnom funkcijom prilikom
+čijeg izračunavanja na našem kalkulatoru može doći do divergencije
+izračunavanja, što u Haskellu znači da funkcija vraća tip $\bot$.
+
+\pause
+\begin{alertblock}{Pažnja}
+Kako se na IA gotovo uvijek pretpostavlja rad
+s \alert{rekurzivnim} funkcijama, što bi u Haskellu odgovaralo totalnim
+funkcijama --- onima koje ne mogu divergirati --- tvrdnje s tog
+kolegija u našem kalkulatoru vrijede samo ako korisnik
+zna da operira nad funkcijama
+koje su same totalne.
+\end{alertblock}
+\end{frame}
+
+\begin{frame}
+    \frametitle{Ograničenja (nastavak)}
+    Kako totalnost funkcije nije općenito moguće odlučiti u bilo
+    kojem programskom jeziku, moramo se pouzdati u korisnika ili u njegovo
+    korištenje posebnih konstrukcija u svom kodu kojima garantira da sve
+    tako dobivene funkcije jesu totalne.    
+\end{frame}
+
+\begin{frame}
+    \frametitle{Osnovno o izračunljivosti brojevnih funkcija}
+    Na kolegiju Izračunljivost smo primarno promatrali izračunljivost
+    u okviru modela parcijalno rekurzivnih funkcija oblika
+    \begin{equation*}
+        \N^k\to\N,
+    \end{equation*}
+    za pozitivnu mjesnost $k$. Na to smo se  oslonili i na
+     Izračunljivoj analizi, s tim da smo tamo dali formalna proširenja
+     tog modela izračunljivosti na funkcije oblika
+     \begin{equation*}
+        \N^k\to\Z,\qquad \N^k\to\Q,\qquad \N^k\to\R,
+     \end{equation*}
+    u pravilu pretpostavljajući u rezultatima da radimo s takvim
+    funkcijama koje su ujedno i rekurzivne tj. totalne i izračunljive. 
+\end{frame}
+
+\begin{frame}
+    \frametitle{U čemu je problem?}
+    \begin{itemize}
+        \item U Haskellu, kao ni u praktički bilo kojem programskom jeziku,
+        nije pretjerano teško implementirati računanje s funkcijama
+        svih spomenutih oblika, $\N^k\to\R$
+\item 
+    Taj zadnji oblik
+     zahtijeva malo drukčiji pristup, budući da on, za razliku od
+     svih ostalih navedenih, obuhvaća funkcije koje preslikavaju
+     prirodne brojeve --- koji se mogu konačno reprezentirati na
+     računalu --- u realne brojeve, koji se tako ne mogu reprezentirati
+\item Ipak, to nas ne spriječava da računamo \alert{proizvoljno točne
+aproksimacije} odgovarajućih realnih brojeva --- izračunljive
+Cauchyjeve nizove
+(racionalnih brojeva) koji jako brzo konvergiraju ka realnim brojevima.
+    \end{itemize}
+\end{frame}
+
+\begin{frame}
+    \frametitle{Izračunljivi realni brojevi $\CR$}
+    Tako dolazimo do centralne definicije iz Izračunljive analize.
+    \begin{block}{Definicija}
+    Realan broj $\alpha\in\R$ nazivamo izračunljivim realnim brojem
+    ako postoji rekurzivna funkcija $F:\N\to\Q$ takva da vrijedi
+    \begin{equation*}
+        |\alpha-F(k)| < 2^{-k},
+    \end{equation*}
+    za sve $k\in\N$.
+    \end{block}
+    $k$ koristimo kao garantiranu preciznost aproksimacije koju dobivamo
+    preko rekurzivne (u Haskellu, totalne) funkcije $F$. Na ovoj se
+    definiciji, i mnogim rezultatima iz IA, temelji naša implementacija
+    izračunavanja s (izračunljivim) realnim brojevima.
+\end{frame}
+
+\begin{frame}
+    \frametitle{O prezentaciji kalkulatora}
+    \begin{itemize}
+        \item U nastavku ćemo proći kroz sve rezultate iz IA
+        koji su relevantni
+        za ovaj projekt
+        \item Usporednim prikazom slike originalnih
+        materijala iz IA i slike izvornog koda kalkulatora ćemo vidjeti
+        kako su određeni matematički konstrukti implementirani u Haskellu
+        \item Definicije tipova $\Z$ i $\Q$ u Haskellu nisu dane, jer se
+        koriste posebno optimizirane interne GHC-ove implementacije tih tipova
+        (\texttt{Integer} odnosno \texttt{Rational})
+        \item Iako ne otkrivamo ništa novo pokazivanjem kako se računa
+        s funkcijama oblika, $\N^k\to\Z$ i $\N^k\to\Q$, ispada da
+        se implementacija operacija nad takvim funkcijama može definirati
+        na sasvim uniforman način, čak i kad se uzmu u obzir i funkcije
+        oblika $\N^k\to\CR$.    
+    \end{itemize}
+\end{frame}
+
+
+\section{Implementacija}
+\begin{frame}
+    \frametitle{Prirodni brojevi}
+    Prvo i osnovno, treba nam tip koji reprezentira $\N$. Haskell
+    ga nema definiranog u Prelude-u, pa ćemo napraviti jednostavnu
+    rekurzivnu definiciju i instancirati sve klase čija svojstva
+    $\N$ zadovoljava. Primijetimo da ćemo pritom ipak dozvoliti da
+    tip \texttt{Nat} ima funkciju \texttt{negate} za negaciju, iako
+    ta operacija nema smisla, jer želimo iskoristiti Haskellovu
+    predefiniranu \texttt{Num} klasu koja nam omogućuje korištenje
+    standardnih infiksnih operatora za aritmetičke operacije.
+    Jedini operator koji ovdje nije definiran je onaj za inverz
+    tj. recipročnu vrijednost broja \texttt{recip}; on se nalazi
+    u klasi \texttt{Fractional} koja modelira tipove brojeva koji
+    zadovoljavaju aksiome polja. To dakle ostavljamo za $\Q$ i $\CR$.
+\end{frame}    
+
+\begin{frame}
+\frametitle{Definicija \texttt{Nat} i pripadnih instanci}
+\includegraphics{natdef.PNG}
+\end{frame}
+\begin{frame}
+\includegraphics[scale=0.7]{natclass1.PNG}
+\end{frame}
+\begin{frame}
+\includegraphics[scale=0.7]{natclass2.PNG}
+\end{frame}
+\begin{frame}
+\begin{columns}
+    \begin{column}{0.5\textwidth}
+    \begin{equation*}
+        |x-y|=(x\dot{-}y)+(y\dot{-}x),\,x,y\in\N
+    \end{equation*}
+    \includegraphics[scale=0.5]{natclass3.PNG}
+\end{column}
+\begin{column}{0.6\textwidth}
+    \begin{align*}
+        \qquad\mathrm{sg}(n)&=\begin{cases}
+            0,&\text{ako je $n=0$;}\\
+            1,&\text{inače.}
+        \end{cases} \\
+        \overline{\mathrm{sg}}(n)&=\begin{cases}
+            1,&\text{ako je $n=0$;}\\
+            0,&\text{inače.}
+        \end{cases}
+    \end{align*}
+\end{column}
+\end{columns}
+\end{frame}
+\begin{frame}
+    \includegraphics[scale=1]{funmain.PNG}
+\end{frame}
+\begin{frame}
+    \includegraphics[scale=1]{iaring.PNG}
+    \includegraphics[scale=0.65]{ringdefs.PNG}
+\end{frame}
+\begin{frame}
+    \includegraphics[scale=1]{iaring.PNG}
+    \includegraphics[scale=0.62]{ringimpl1.PNG}
+\end{frame}
+\begin{frame}
+\includegraphics[scale=1]{iafunops.PNG}
+\includegraphics[scale=1]{funopdefs.PNG}%NAPOMENI: konstantne su funkcije
+%uvijek rekurzivne, to je trivijalno i zato uvijek imamo fromInteger i sl. funkcije
+\end{frame}
+\begin{frame}
+    \includegraphics[scale=0.8]{funopext.PNG}
+\end{frame}
+\begin{frame}
+    \includegraphics[scale=0.42]{realring.png}
+    Uočavamo "univerzalnu konstrukciju":
+    \begin{equation*}
+        (\mathrm{Fun1}\ f) \oplus (\mathrm{Fun1}\ g) = \mathrm{Fun1} (\lambda x\rightarrow f x \oplus g x)
+    \end{equation*}
+\end{frame}
+\begin{frame}
+    Moramo implementirati vlastitu kompoziciju i aplikaciju (poziv) funkcija, za sve različite kombinacije mjesnosti. Iz IA
+    znamo da je kompozicija rekurzivnih funkcija (svih koje smo spomenuli) rekurzivna funkcija.
+    \includegraphics[scale=0.5]{compose.png}
+\end{frame}
+\begin{frame}
+    Još treba implementirati \texttt{Fractional} --- to su svi tipovi brojeva koji imaju multiplikativni inverz,
+    te sada želimo proširiti računanje njima na funkcije s tom kodomenom.
+    \includegraphics[scale=0.4]{fractionalfun.png}
+    \includegraphics[scale=0.3]{fractional_korolar.png}
+\end{frame}
+\begin{frame}
+    \frametitle{Izračunljivi realni brojevi}
+    Sada dolazi zanimljiv dio: računanje s (izračunljivim) realnim brojevima. Prvo moramo definirati taj tip broja.
+    Trebaju nam i pomoćne funkcije za aproksimiranje te kombinirano apliciranje i aproksimiranje u slučaju
+    \emph{funkcija} s kodomenom $\CR$.
+    \includegraphics[scale=0.5]{realdef.png}
+\end{frame}
+\begin{frame}
+    \includegraphics[scale=0.5]{realfuns.png}
+    Uočavamo još jednostavniju konstrukciju (uz iznimku) svih operacija nad izračunljivim realnim brojevima:
+    \begin{equation*}
+        (\CR\ x) \oplus (\CR\ y) = \CR(x\oplus y)
+    \end{equation*}
+\end{frame}
+\begin{frame}
+    Odgovarajući dokazi iz Izračunljive analize za produkt i recipročnu vrijednost.
+    % \begin{columns}
+    %     \begin{column}{0.5\textwidth}
+
+    % \end{columns}
+    \includegraphics[scale=0.15]{produkt.png}
+    \mbox{\ldots}\vspace{4pt}
+    %\hline
+    \includegraphics[scale=0.2]{recip1.png}
+    \includegraphics[scale=0.2]{recip2.png}
+\end{frame}
+\begin{frame}
+    \frametitle{Digresija: alternativa?}
+    \includegraphics[scale=0.26]{digresija.png}
+\end{frame}
+\begin{frame}
+    Ipak moramo posebno definirati funkcije iz naše dodatne klase, jer izračunljivi realni brojevi nemaju odlučiv uređaj, pa ne mogu
+    koristiti prošlu implementaciju.
+    \includegraphics[scale=0.3]{ringreals.png}
+\end{frame}
+\begin{frame}
+    \includegraphics[scale=0.5]{decimal_ia.png}
+    \includegraphics[scale=0.28]{decimal.png}
+    \includegraphics[scale=0.4]{decimal_ia2.png}
+\end{frame}
+\begin{frame}
+    Funkcija $u'$ u dokazu:
+    \includegraphics[scale=0.6]{ufun.png}
+\end{frame}
+\begin{frame}
+    Za prikaz proizvoljno mnogo decimala pozitivnog izračunljivog broja (uključujući i njegov cjelobrojni dio), koristimo funkciju
+    \texttt{showReal}:
+    \includegraphics[scale=0.4]{showreal.png}
+\end{frame}
+\begin{frame}
+    Na Izračunljivoj analizi smo istaknuli da možemo "promovirati" funkcije stupnjevito, pa ovdje to eksplicitno 
+    definiramo:
+    \includegraphics[scale=0.4]{promocija.png}
+\end{frame}
+
+\begin{frame}
+    \frametitle{Račun s funkcijama oblika $f:\subseteq\R\to\R$}
+    \begin{itemize}
+        \item Htjeli bismo još da naš kalkulator može računati i s funkcijama koje kao domenu imaju neki podskup od $\R$.
+        \pause
+        \item Postoji više smislenih načina za definirati izračunljivost nad ovakvim funkcijama.
+        \pause
+        \item Definicija s IA je malo prespecifična za naše potrebe, pa mi uvodimo sljedeću definiciju:
+    \end{itemize}
+    \begin{block}{Definicija}
+        Za funkciju $f:S\to\CR,\,S\subseteq\R$ kažemo da je izračunljiva ako za svaki $x\in S$ vrijedi da je
+        $f(x)$ izračunljiv realan broj.
+    \end{block}
+    Možemo dakle reći i ovako: $f:S\to\CR$ je izračunljiva ako je $S\subseteq\CR$.
+\end{frame}
+\begin{frame}
+    \frametitle{Računanje polinoma}
+    \begin{align*}
+        p:\R&\to\R \\
+        p(x)=a_0+a_1x&+\dotsb+a_nx^n
+    \end{align*}
+    Polinome lako računamo direktno i zadajemo ih listom koeficijenata, gdje je prvi slobodan:
+    \includegraphics[scale=0.6]{poly.png}
+\end{frame}
+\begin{frame}
+    \frametitle{Računanje redova potencija}
+    Neka je zadan rekurzivan (izračunljiv) niz realnih brojeva $(a_n)_{\N}$. Onda za neki $R\in\langle 0,\infty\rangle\cup\{\infty\}$ imamo
+    \begin{equation*}
+        \sum^{\infty}_{i=0}a_ix^i,\,x\in\langle -R,R\rangle.
+    \end{equation*}
+    \pause
+    Račun ide nešto teže --- zahtijeva mnoštvo dodatnih rezultata. Naime, pokazuje se da je račun reda općenito moguć samo ako se uz argument $x$ u području
+    konvergencije zadaju i tri dodatna parametra takva da vrijedi odnos: $|x|<s<r$ te $M\in\N$, $r,s\in\Q$.
+    \pause
+    
+    Iz analize znamo da za svaki $r<R$ postoji konstanta $M\in\N$ takva da vrijedi
+    \begin{equation*}
+        |a_j|\leq M\cdot r^{-j}\text{ za sve }j\in\N.
+    \end{equation*}\cite{weihrauch}
+\end{frame}
+\begin{frame}
+    \includegraphics[scale=0.35]{series.png}
+\end{frame}
+
+\section{Zaključak}
+\begin{frame}
+    \frametitle{Moguća poboljšanja/proširenja}
+    \begin{itemize}
+        \item odabir najefikasnijih algoritama i notacija/reprezentacija za računanje s realnim brojevima; mnoge dobre ideje npr. u \cite{ram};
+        \item omogućavanje računanja uređaja, s tim da on postaje \alert{ograničene preciznosti} --- unutar određene kritične zone ne može biti 
+        determinističan;
+        \item dizajn zasebnog programskog jezika specijaliziranog za računanje s tipom $\CR$, funkcijama nad njim i moguće još nekim vezanim strukturama;
+        \item parametrizacija mjesnosti u Haskellu (ne pomoću nekog metajezika poput Template Haskella!), koristeći neke GHC ekstenzije;
+        \item dodati rješavač linearnih sustava, vađenje korijena polinoma\ldots
+        \item implicitno/automatsko procjenjivanje aritmetičke složenosti cjelokupnog programa, ovisno o statički specificiranim parametrima
+        preciznosti na ključnim mjestima
+    \end{itemize}
+\end{frame}
+
+
+\begin{frame}
+    \frametitle{Literatura}
+    \printbibliography
+\end{frame}
+
+\end{document}
