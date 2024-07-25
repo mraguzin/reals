@@ -401,9 +401,9 @@ Cauchyjeve nizove
     \begin{itemize}
         \item Htjeli bismo još da naš kalkulator može računati i s funkcijama koje kao domenu imaju neki podskup od $\R$.
         \pause
-        \item Postoji više smislenih načina za definirati izračunljivost nad ovakvim funkcijama.
+        \item Postoji više smislenih načina za definirati izračunljivost ovakvih funkcija.
         \pause
-        \item Definicija s IA je malo prespecifična za naše potrebe, pa mi uvodimo sljedeću definiciju:
+        \item Definicija s IA je suviše restriktivna za naše potrebe, pa mi uvodimo sljedeću definiciju:
     \end{itemize}
     \begin{block}{Definicija}
         Za funkciju $f:S\to\CR,\,S\subseteq\R$ kažemo da je izračunljiva ako za svaki $x\in S$ vrijedi da je
@@ -416,13 +416,15 @@ Cauchyjeve nizove
     \begin{align*}
         p:\R&\to\R \\
         p(x)=a_0+a_1x&+\dotsb+a_nx^n
-    \end{align*}
+    \end{align*}    
     Polinome lako računamo direktno i zadajemo ih listom koeficijenata, gdje je prvi slobodan:
     \includegraphics[scale=0.6]{poly.png}
+    
+    Niz koeficijenata $(a_n)_{n\in\N}$ mora biti izračunljiv, dakle koeficijenti moraju biti izračunljivi realni brojevi.
 \end{frame}
 \begin{frame}
     \frametitle{Računanje redova potencija}
-    Neka je zadan rekurzivan (izračunljiv) niz realnih brojeva $(a_n)_{\N}$. Onda za neki $R\in\langle 0,\infty\rangle\cup\{\infty\}$ imamo
+    Neka je zadan rekurzivan (izračunljiv) niz realnih brojeva $(a_n)_{n\in\N}$. Onda za neki $R\in\langle 0,\infty\rangle\cup\{\infty\}$ imamo
     \begin{equation*}
         \sum^{\infty}_{i=0}a_ix^i,\,x\in\langle -R,R\rangle.
     \end{equation*}

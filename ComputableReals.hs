@@ -1,62 +1,12 @@
 {-# LANGUAGE TypeFamilies, FlexibleInstances, DataKinds, UndecidableInstances #-}
 module ComputableReals where
 import Data.Ratio
+import Numeric.Natural
 
+-- NAPOMENA: provjerite https://github.com/mraguzin/reals za ažurirane verzije ovog programa; tamo će biti potpuna implementacija elementarnih funkcija
+-- i ispravci uočenih bugova
 
-data Nat =
-    Zero
-  | Succ Nat
-  deriving (Eq, Ord, Show)
-
-one = Succ Zero
-
-instance Num Nat where
-    a + Zero = a
-    a + (Succ b) = Succ (a + b)
-
-    a - Zero = a
-    a - (Succ b) = pred (a - b) -- modificirano oduzimanje
-
-    a * Zero = Zero
-    a * (Succ b) = a * b + a
-
-    abs n = n
-
-    signum Zero = Zero
-    signum _    = one
-
-    fromInteger n | n < 0  = undefined
-                  | n == 0 = Zero
-                  | n > 0  = Succ $ fromInteger (pred n)
-
-    negate n = n
-
-instance Enum Nat where
-    toEnum 0 = Zero
-    toEnum n | n < 0     = undefined
-             | otherwise = Succ $ toEnum (pred n)
-
-    fromEnum Zero     = 0
-    fromEnum (Succ n) = succ $ fromEnum n
-
-    succ n = Succ n
-
-    pred Zero     = Zero
-    pred (Succ n) = n
-
-instance Integral Nat where
-    toInteger Zero     = 0
-    toInteger (Succ n) = succ $ toInteger n
-
-    quotRem x Zero = (x, Zero)
-    quotRem x y = sub x y Zero
-     where sub x y c | y > x = (c, x)
-                     | otherwise = sub (x - y) y (succ c)
-    
-    divMod = quotRem
-
-instance Real Nat where
-    toRational n = toRational $ fromEnum n
+type Nat = Natural
 
 -- apsolutna razlika
 absDiff :: Nat -> Nat -> Nat
@@ -65,7 +15,7 @@ absDiff x y = (x - y) + (y - x)
 -- polimorfno potenciranje
 pow :: Num a => a -> Nat -> a
 pow _ 0        = 1
-pow x (Succ n) = x * pow x n
+pow x n = x * pow x (pred n)
 
 -- sg potez
 sgc :: Nat -> Nat
@@ -100,8 +50,6 @@ instance Fractional a => Fractional (a,a) where
     fromRational x = undefined
     recip (x,y) = (recip x, recip y)
 
--- data Fun k where
---     Fun :: f -> NFun k
 
 class RingFun2 a where -- ovakvih klasa treba biti onoliko koliko
                        --i mjesnosti k (k > 1) za funkcije
@@ -210,7 +158,7 @@ instance Num CR where
     x + y = CR $ Fun1 (\k -> approx x (k+2) + approx y (k+2))
     (CR x) * (CR y) = CR (x * y)
     abs (CR x) = CR (abs x)
-    signum (CR x) = undefined -- općenito nije izračunljivo (vidjeti IA)
+    signum (CR _) = undefined -- općenito nije izračunljivo (vidjeti IA)
     negate (CR x) = CR (negate x)
     fromInteger i = CR $ Fun1 (\_ -> toRational i)
 
@@ -260,9 +208,10 @@ instance RingFun3 CR where
     sumFun3 alfa beta (Fun3 f) x y = CR $ Fun1 (\k -> sum [approx (f i x y) (k+beta x y+1) | i <- [alfa x y .. beta x y]])
     prodFun3 alfa beta (Fun3 f) x y = CR $ Fun1 (\k -> product [approx (f i x y) k | i <- [alfa x y .. beta x y]])
 
--- iščitavanje decimale *pozitivnog* realnog broja; PAZI: indekse decimala brojimo od 1, a ne od 0
-decimalBase :: Nat -> CR -> Nat -> Nat
-decimalBase b f n = mod (g (pow b n)) b
+-- iščitavanje n decimala (baze b) *nenegativnog* realnog broja; PAZI: indekse decimala brojimo od 1, a ne od 0
+-- vraća listu decimala, od one indeksa 1 do one indeksa n
+decimalBase :: Nat -> CR -> Nat -> [Nat]
+decimalBase b f n = [mod (g (pow b i)) b | i <- [1 .. n]]
    where g :: Nat -> Nat
          g n = floor $ toRational n * abs (approx f (fi 0))
          fi k | u' (n * absnum (approx f k)) (absden (approx f k)) + toRational (sgc n) > toRational n * recip (toRational (pow 2 k)) = k
@@ -279,11 +228,11 @@ decimalBase b f n = mod (g (pow b n)) b
 decimal = decimalBase 10
 binary = decimalBase 2
 
--- prikaz proizvoljno mnogo decimala pozitivnog realnog broja (uključujući i cjelobrojni dio)
+-- prikaz proizvoljno mnogo decimala nenegativnog realnog broja (uključujući i cjelobrojni dio)
 showReal :: CR -> Nat -> String
 showReal f n = show int ++ ('.' : decimals)
  where int = floor $ abs (approx f 1)
-       decimals = [head $ show (decimal f i) | i <- [1 .. n]]
+       decimals = map (head . show . toInteger) (decimal f n)
 
 
 -- "promocije" funkcija N^k->N u N^k->Z
@@ -333,7 +282,7 @@ poly as = \x -> g x 0 as
 -- pomoćne funkcije za račun redova potencija
 -- vidi Weihrauch, Computable Analysis Theorem 4.3.7
 lim :: Fun1 CR -> (Nat -> Nat) -> CR
-lim f e = CR $ Fun1 (\i -> approx (apply1 f (e (2+i))) (2+i))
+lim f e = CR $ Fun1 (\i -> approxApply1 f (e (2+i)) (2+i))
 
 slim :: Fun1 CR -> (Nat -> Nat) -> CR
 slim xs e = lim (ss xs) e
@@ -364,10 +313,10 @@ instance Floating CR where
            oddp  n = product [1, 3 .. n-1]
            s = approx x (z+1) + toRational (recip (pow 10 z))
            z = findz 1
-           findz i | decimal x i < 9 = i
+           findz i | last (decimal x i) < 9 = i
                    | otherwise = findz (succ i)
 
-    pi = 6 * asin (fromRational (toRational (1 % 2)))
+    pi = 6 * asin (fromRational (1 % 2))
 
     acos x = pi / 2 - asin x
 
@@ -377,7 +326,7 @@ instance Floating CR where
                    | otherwise = 0
            s = approx x (z+1) + toRational (recip (pow 10 z))
            z = findz 1
-           findz i | decimal x i < 9 = i
+           findz i | last (decimal x i) < 9 = i
                    | otherwise = findz (succ i)
 
     exp x = series (Fun1 coeff) (r (toRational (r k))) (s (toRational (r k))) (m k) x
@@ -387,7 +336,7 @@ instance Floating CR where
            r i = i + 1
            m i = pow (r i) (r i)
            s u = search 1
-            where search i | (decimal x i) < 9 && apx < u = apx
+            where search i | last (decimal x i) < 9 && apx < u = apx
                            | otherwise = search (succ i)
                    where apx = approx x (i+1) + toRational (recip (pow 10 i))
 
@@ -402,7 +351,7 @@ instance Floating CR where
                            | otherwise = fromRational (toRational (pow (-1) (n+1) * (1 % n)))
                    s = approx x (z+1) + toRational (recip (pow 10 z))
                    z = findz 1
-                   findz i | decimal x i < 9 = i
+                   findz i | last (decimal x i) < 9 = i
                            | otherwise = findz (succ i)
            pow' :: Nat -> Integer -> Rational
            pow' n x | x == 0 = 1 % 1
@@ -420,8 +369,8 @@ instance Floating CR where
 ---------------------------------------- PRIMJERI ---------------------------------------
 
 fact :: Nat -> Nat
-fact Zero = one
-fact (Succ n) = (fact n) * (Succ n)
+fact 0 = 1
+fact n = (fact (pred n)) * n
 
 fun' :: Nat -> Rational
 fun' 0 = 0
